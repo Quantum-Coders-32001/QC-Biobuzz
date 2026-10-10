@@ -13,7 +13,9 @@ buildscript {
 
 plugins {
     // Note for FTC Teams: Do not modify this yourself.
+    //noinspection AndroidGradlePluginVersion
     id 'com.android.application' version '8.13.2' apply false
+    //noinspection AndroidGradlePluginVersion
     id 'com.android.library' version '8.13.2' apply false
 }
 

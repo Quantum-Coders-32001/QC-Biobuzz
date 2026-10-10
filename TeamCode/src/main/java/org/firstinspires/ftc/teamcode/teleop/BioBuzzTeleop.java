@@ -17,7 +17,14 @@ public class BioBuzzTeleop extends OpMode {
     // TODO(tune): these were set for a two-motor launcher. Re-tune against the single "launch"
     //  motor, or the velocity loop may never reach VELOCITY_TOLERANCE and the feeder will
     //  never start.
-    private static final double LAUNCHER_TARGET = 1500;
+    private static final double LAUNCHER_TARGET_DEFAULT = 1800;
+
+    // RT / LT adjust the target during a match. The driver is responsible for setting a sane
+    // value; these bounds only stop a held trigger from running away.
+    private static final double LAUNCHER_VELOCITY_MIN = 0.0;
+    private static final double LAUNCHER_VELOCITY_MAX = 3000.0;
+    private static final double LAUNCHER_VELOCITY_STEP = 100.0;
+
     private static final double VELOCITY_TOLERANCE = 75;
     private static final long FEEDER_DURATION_MS = 700;
     private static final double LAUNCHER_KP = 0.002;
@@ -27,12 +34,13 @@ public class BioBuzzTeleop extends OpMode {
 
     // TODO(measure): the two mechanical stops of the flower hitter. Measure these with the
     // mechanism at each end of its travel against a hard stop. Until then these are guesses.
-    private static final double SERVO_HOME = 0.0;
-    private static final double SERVO_FLOWER = 1.0;
+    private static final double SERVO_HOME = 1;
+    private static final double SERVO_FLOWER = 0;
 
     private DcMotorEx frontLeft, frontRight, backLeft, backRight;
     private DcMotorEx launcher;
     private DcMotorEx intakeMotor, feederMotor;
+    private DcMotorEx[] allMotors; // assigned in init() once every motor has been fetched
     private Servo flowerServo;
 
     private Timing.Timer feedTimer;
@@ -40,11 +48,14 @@ public class BioBuzzTeleop extends OpMode {
     // Launcher is armed at match start. The flag is set here but no power is commanded until loop()
     // runs, so init() still leaves every actuator de-energized (G304 / G403).
     private boolean launcherEnabled = true;
+    private double launcherTargetVelocity = LAUNCHER_TARGET_DEFAULT;
     private boolean feederRunning = false;
     private boolean servoAtFlower = false;
-    private boolean lastY = false;
+    private boolean lastB = false;
     private boolean lastLeftBumper = false;
     private boolean lastRightBumper = false;
+    private boolean lastDpadLeft = false;
+    private boolean lastDpadRight = false;
 
     @Override
     public void init() {
@@ -87,20 +98,22 @@ public class BioBuzzTeleop extends OpMode {
         intakeMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         feederMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
+        allMotors = new DcMotorEx[]{
+                frontLeft, frontRight, backLeft, backRight,
+                launcher, intakeMotor, feederMotor
+        };
+
         // Flower hitter servo. Two fixed stops only; it is never commanded to an intermediate value.
         flowerServo = hardwareMap.get(Servo.class, "s");
         servoAtFlower = false;
+        flowerServo.setPosition(SERVO_HOME);
 
         // Reset actuator state so a previous OpMode's commands cannot survive into this one.
-        // NOTE: DcMotor.stopAndReset() was removed in SDK 12; setPower(0) + setMotorDisable()
-        // is the replacement.
-        deenergize(frontLeft);
-        deenergize(frontRight);
-        deenergize(backLeft);
-        deenergize(backRight);
-        deenergize(launcher);
-        deenergize(intakeMotor);
-        deenergize(feederMotor);
+        // setMotorDisable() de-energizes the port and it stays that way until setMotorEnable();
+        // start() re-enables every motor.
+        for (DcMotorEx motor : allMotors) {
+            deenergize(motor);
+        }
 
         feedTimer = new Timing.Timer(FEEDER_DURATION_MS, TimeUnit.MILLISECONDS);
 
@@ -109,15 +122,41 @@ public class BioBuzzTeleop extends OpMode {
     }
 
     @Override
+    public void start() {
+        // Undo init()'s setMotorDisable(). Without this the motors would stay de-energized.
+        for (DcMotorEx motor : allMotors) {
+            motor.setMotorEnable();
+        }
+    }
+
+    @Override
     public void loop() {
-        flowerServo.setPosition(SERVO_HOME);
-        // Y is the emergency launcher kill: the launcher runs from the start of the match, and Y is the
-        // only way to stop it.
-        boolean y = gamepad2.y;
-        if (y && !lastY) {
+
+        // B toggles the launcher. It runs from the start of the match; B is the only way to stop it.
+        boolean b = gamepad2.b;
+        if (b && !lastB) {
             launcherEnabled = !launcherEnabled;
         }
-        lastY = y;
+        lastB = b;
+
+        // D-pad right raises the launcher target, D-pad left lowers it, one step per press.
+        boolean dpadRight = gamepad2.dpad_right;
+        if (dpadRight && !lastDpadRight) {
+            launcherTargetVelocity = clamp(
+                    launcherTargetVelocity + LAUNCHER_VELOCITY_STEP,
+                    LAUNCHER_VELOCITY_MIN,
+                    LAUNCHER_VELOCITY_MAX);
+        }
+        lastDpadRight = dpadRight;
+
+        boolean dpadLeft = gamepad2.dpad_left;
+        if (dpadLeft && !lastDpadLeft) {
+            launcherTargetVelocity = clamp(
+                    launcherTargetVelocity - LAUNCHER_VELOCITY_STEP,
+                    LAUNCHER_VELOCITY_MIN,
+                    LAUNCHER_VELOCITY_MAX);
+        }
+        lastDpadLeft = dpadLeft;
 
         // Right bumper toggles the flower hitter between its home and flower stops.
         boolean rightBumper = gamepad2.right_bumper;
@@ -134,6 +173,7 @@ public class BioBuzzTeleop extends OpMode {
 
         // Telemetry
         telemetry.addData("Launcher", launcherEnabled ? "ENABLED" : "OFF");
+        telemetry.addData("Target Velocity", String.format("%.0f", launcherTargetVelocity));
         telemetry.addData("Launcher Velocity", String.format("%.0f", launcher.getVelocity()));
         telemetry.addData("At Speed", atLauncherSpeed() ? "YES" : "NO");
         telemetry.addData("Feeder",
@@ -143,15 +183,27 @@ public class BioBuzzTeleop extends OpMode {
         telemetry.update();
     }
 
+    /**
+     * Robot-centric mecanum drive (CTRL ALT FTC "Drivetrain Control" mixing).
+     *
+     * <p>Axis convention is the one the page's mixing implies: x = forward, y = strafe right,
+     * t = turn clockwise. The page never states this, and the old code fed stick-X into x and
+     * stick-Y into y, which swaps forward and strafe against this mixing.
+     */
     private void drive() {
-        double dy = applyDeadband(-gamepad1.left_stick_y);
-        double dx = applyDeadband(gamepad1.left_stick_x);
-        double dt = applyDeadband(gamepad1.right_stick_x);
+        double x = applyDeadband(-gamepad1.left_stick_y);  // forward
+        double y = applyDeadband(gamepad1.left_stick_x);   // strafe right
+        double t = applyDeadband(gamepad1.right_stick_x);  // turn clockwise
 
-        frontLeft.setPower(dy + dx + dt);
-        frontRight.setPower(dy - dx - dt);
-        backLeft.setPower(dy - dx + dt);
-        backRight.setPower(dy + dx - dt);
+        // The page does not normalize. Without this, one wheel clips at 1.0 while the others
+        // don't, which bends the direction of travel on full-stick diagonals / turns.
+        double denominator = Math.max(Math.abs(x) + Math.abs(y) + Math.abs(t), 1.0);
+
+        // x, y, theta input mixing
+        frontLeft.setPower((x + y + t) / denominator);
+        backLeft.setPower((x - y + t) / denominator);
+        frontRight.setPower((x - y - t) / denominator);
+        backRight.setPower((x + y - t) / denominator);
     }
 
     private void runLauncher() {
@@ -160,17 +212,17 @@ public class BioBuzzTeleop extends OpMode {
             return;
         }
 
-        double error = LAUNCHER_TARGET - launcher.getVelocity();
+        double error = launcherTargetVelocity - launcher.getVelocity();
 
         double launchPower = clamp(
-                LAUNCHER_KP * error + LAUNCHER_KF * LAUNCHER_TARGET,
+                LAUNCHER_KP * error + LAUNCHER_KF * launcherTargetVelocity,
                 0.0, 1.0);
 
         launcher.setPower(launchPower);
     }
 
     private boolean atLauncherSpeed() {
-        return Math.abs(launcher.getVelocity() - LAUNCHER_TARGET) < VELOCITY_TOLERANCE;
+        return Math.abs(launcher.getVelocity() - launcherTargetVelocity) < VELOCITY_TOLERANCE;
     }
 
     /**
@@ -247,14 +299,15 @@ public class BioBuzzTeleop extends OpMode {
 
     @Override
     public void stop() {
-        frontLeft.setPower(0);
-        frontRight.setPower(0);
-        backLeft.setPower(0);
-        backRight.setPower(0);
-
-        launcher.setPower(0);
-
-        intakeMotor.setPower(0);
-        feederMotor.setPower(0);
+        // init() may have thrown before the motors were fetched; don't stack an NPE on top of it.
+        if (allMotors == null) {
+            return;
+        }
+        for (DcMotorEx motor : allMotors) {
+            motor.setPower(0);
+            // If the OpMode was stopped from INIT, start() never ran. Don't leave ports disabled
+            // for whatever OpMode runs next.
+            motor.setMotorEnable();
+        }
     }
 }
