@@ -13,16 +13,17 @@ public final class TurretGeometry {
 
         public void validate() {
             StringBuilder missing = new StringBuilder();
-            if (Double.isNaN(pivotOffsetXIn)) missing.append("pivotOffsetXIn ");
-            if (Double.isNaN(pivotOffsetYIn)) missing.append("pivotOffsetYIn ");
-            if (Double.isNaN(zeroOffsetRad)) missing.append("zeroOffsetRad ");
-            if (Double.isNaN(minTurretAngleRad)) missing.append("minTurretAngleRad ");
-            if (Double.isNaN(maxTurretAngleRad)) missing.append("maxTurretAngleRad ");
+            if (!Double.isFinite(pivotOffsetXIn)) missing.append("pivotOffsetXIn ");
+            if (!Double.isFinite(pivotOffsetYIn)) missing.append("pivotOffsetYIn ");
+            if (!Double.isFinite(zeroOffsetRad)) missing.append("zeroOffsetRad ");
+            if (!Double.isFinite(minTurretAngleRad)) missing.append("minTurretAngleRad ");
+            if (!Double.isFinite(maxTurretAngleRad)) missing.append("maxTurretAngleRad ");
+            if (!Double.isFinite(hysteresisRad) || hysteresisRad < 0) missing.append("hysteresisRad ");
             if (missing.length() > 0) {
-                throw new IllegalStateException("TurretGeometry.Config missing required values: " + missing.toString().trim());
+                throw new IllegalStateException("TurretGeometry.Config missing or invalid required values: " + missing.toString().trim());
             }
-            if (minTurretAngleRad > maxTurretAngleRad) {
-                throw new IllegalStateException("minTurretAngleRad must be <= maxTurretAngleRad");
+            if (minTurretAngleRad >= maxTurretAngleRad) {
+                throw new IllegalStateException("minTurretAngleRad must be < maxTurretAngleRad");
             }
         }
     }
@@ -43,22 +44,50 @@ public final class TurretGeometry {
     }
 
     public interface FlightTimeFunction {
+        /**
+         * Returns the flight time in seconds for a given distance in inches.
+         * Must be a total function (defined for all non-negative distances).
+         * Must NOT throw exceptions; return NaN for out-of-domain input (solve() then reports INVALID_INPUT).
+         * Exceptions are not caught by solve() and will propagate.
+         * @param distanceIn distance in inches
+         * @return flight time in seconds, or NaN for invalid input
+         */
         double flightTimeSeconds(double distanceIn);
     }
 
     public static final class SolveOutput {
+        public enum Status {
+            OK,
+            DEAD_ZONE,
+            /**
+             * INVALID_INPUT: any non-finite SolveInput field (robot x/y/heading/vx/vy/omega,
+             * target x/y, currentTurretAngleRad), or a flightTimeFunction result that is
+             * non-finite or negative.
+             * Output: targetAngleRad = currentTurretAngleRad if finite, else NaN;
+             * targetRateRadPerSec = 0.0; distIn = NaN; leadConverged = false.
+             * Consumers must hold position / output zero power.
+             * NaN currentTurretAngleRad is the normal unhomed state and yields INVALID_INPUT.
+             */
+            INVALID_INPUT
+        }
+
         public final double targetAngleRad;
         public final double targetRateRadPerSec;
         public final double distIn;
-        public final boolean feasible;
-        public final boolean clamped;
+        public final Status status;
+        /**
+         * leadConverged: true unless the velocity-lead iteration exhausted MAX_ITERATIONS
+         * without meeting tolerance; meaningful only when status != INVALID_INPUT;
+         * consumers must check status first.
+         */
+        public final boolean leadConverged;
 
-        public SolveOutput(double targetAngleRad, double targetRateRadPerSec, double distIn, boolean feasible, boolean clamped) {
+        public SolveOutput(double targetAngleRad, double targetRateRadPerSec, double distIn, Status status, boolean leadConverged) {
             this.targetAngleRad = targetAngleRad;
             this.targetRateRadPerSec = targetRateRadPerSec;
             this.distIn = distIn;
-            this.feasible = feasible;
-            this.clamped = clamped;
+            this.status = status;
+            this.leadConverged = leadConverged;
         }
     }
 
@@ -68,6 +97,15 @@ public final class TurretGeometry {
 
     public static SolveOutput solve(Config config, SolveInput input) {
         config.validate();
+
+        // Input validation: all SolveInput doubles must be finite
+        if (!Double.isFinite(input.robotXIn) || !Double.isFinite(input.robotYIn) ||
+                !Double.isFinite(input.robotHeadingRad) || !Double.isFinite(input.robotVxInPerSec) ||
+                !Double.isFinite(input.robotVyInPerSec) || !Double.isFinite(input.robotOmegaRadPerSec) ||
+                !Double.isFinite(input.targetXIn) || !Double.isFinite(input.targetYIn) ||
+                !Double.isFinite(input.currentTurretAngleRad)) {
+            return invalidInputOutput(input.currentTurretAngleRad);
+        }
 
         double cosH = Math.cos(input.robotHeadingRad);
         double sinH = Math.sin(input.robotHeadingRad);
@@ -80,6 +118,7 @@ public final class TurretGeometry {
 
         double virtualTargetXIn = input.targetXIn;
         double virtualTargetYIn = input.targetYIn;
+        boolean leadConverged = true;
 
         if (input.flightTimeFunction != null) {
             double dx = virtualTargetXIn - pivotXIn;
@@ -89,8 +128,11 @@ public final class TurretGeometry {
             if (distIn > MIN_DIST_FOR_LEAD_IN) {
                 for (int iter = 0; iter < MAX_ITERATIONS; iter++) {
                     double t = input.flightTimeFunction.flightTimeSeconds(distIn);
-                    double prevVirtualTargetXIn = virtualTargetXIn;
-                    double prevVirtualTargetYIn = virtualTargetYIn;
+
+                    // flightTimeFunction output must be finite and non-negative
+                    if (!Double.isFinite(t) || t < 0.0) {
+                        return invalidInputOutput(input.currentTurretAngleRad);
+                    }
 
                     virtualTargetXIn = input.targetXIn - pivotVxInPerSec * t;
                     virtualTargetYIn = input.targetYIn - pivotVyInPerSec * t;
@@ -104,6 +146,10 @@ public final class TurretGeometry {
                         break;
                     }
                     distIn = newDistIn;
+
+                    if (iter == MAX_ITERATIONS - 1) {
+                        leadConverged = false;
+                    }
                 }
             }
         }
@@ -120,9 +166,6 @@ public final class TurretGeometry {
         }
 
         double turretAngleRad = AngleUtil.wrap(bearingFieldRad - input.robotHeadingRad - config.zeroOffsetRad);
-
-        double rangeSpan = config.maxTurretAngleRad - config.minTurretAngleRad;
-        boolean fullCircle = rangeSpan >= AngleUtil.TWO_PI - 1e-12;
 
         boolean feasible = true;
         boolean clamped = false;
@@ -158,6 +201,12 @@ public final class TurretGeometry {
             targetRateRadPerSec = bearingRateRadPerSec - input.robotOmegaRadPerSec;
         }
 
-        return new SolveOutput(finalAngleRad, targetRateRadPerSec, distIn, feasible, clamped);
+        SolveOutput.Status status = feasible ? SolveOutput.Status.OK : SolveOutput.Status.DEAD_ZONE;
+        return new SolveOutput(finalAngleRad, targetRateRadPerSec, distIn, status, leadConverged);
+    }
+
+    private static SolveOutput invalidInputOutput(double currentTurretAngleRad) {
+        double angle = Double.isFinite(currentTurretAngleRad) ? currentTurretAngleRad : Double.NaN;
+        return new SolveOutput(angle, 0.0, Double.NaN, SolveOutput.Status.INVALID_INPUT, false);
     }
 }

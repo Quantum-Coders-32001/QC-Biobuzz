@@ -47,8 +47,7 @@ public class TurretGeometryTest {
         TurretGeometry.SolveOutput out = TurretGeometry.solve(cfg, in);
         assertEquals(0.0, out.targetAngleRad, EPS);
         assertEquals(10.0, out.distIn, DIST_EPS);
-        assertTrue(out.feasible);
-        assertFalse(out.clamped);
+        assertEquals(TurretGeometry.SolveOutput.Status.OK, out.status);
     }
 
     @Test
@@ -149,7 +148,7 @@ public class TurretGeometryTest {
         in.currentTurretAngleRad = 0.0;
         TurretGeometry.SolveOutput out = TurretGeometry.solve(cfg, in);
         assertEquals(0.0, out.targetAngleRad, EPS);
-        assertTrue(out.feasible);
+        assertEquals(TurretGeometry.SolveOutput.Status.OK, out.status);
 
         in.currentTurretAngleRad = Math.PI / 4;
         out = TurretGeometry.solve(cfg, in);
@@ -174,8 +173,7 @@ public class TurretGeometryTest {
         in.targetYIn = 10.0;
 
         TurretGeometry.SolveOutput out = TurretGeometry.solve(cfg, in);
-        assertFalse(out.feasible);
-        assertTrue(out.clamped);
+        assertEquals(TurretGeometry.SolveOutput.Status.DEAD_ZONE, out.status);
         double expectedClamp = Math.PI / 4;
         assertEquals(expectedClamp, out.targetAngleRad, EPS);
     }
@@ -191,8 +189,7 @@ public class TurretGeometryTest {
         in.targetYIn = -10.0;
 
         TurretGeometry.SolveOutput out = TurretGeometry.solve(cfg, in);
-        assertTrue(out.feasible);
-        assertFalse(out.clamped);
+        assertEquals(TurretGeometry.SolveOutput.Status.OK, out.status);
     }
 
     @Test
@@ -238,10 +235,10 @@ public class TurretGeometryTest {
 
             out = TurretGeometry.solve(cfg, in);
             double jump = Math.abs(AngleUtil.shortestAngularDistance(prevAngle, out.targetAngleRad));
-            if (jump > maxJump && out.feasible) {
+            if (jump > maxJump && out.status == TurretGeometry.SolveOutput.Status.OK) {
                 maxJump = jump;
             }
-            if (!out.feasible) {
+            if (out.status != TurretGeometry.SolveOutput.Status.OK) {
                 deadZoneCrossings++;
             }
             prevAngle = out.targetAngleRad;
@@ -316,7 +313,7 @@ public class TurretGeometryTest {
         in.flightTimeFunction = dist -> 0.001 * dist;
 
         TurretGeometry.SolveOutput out = TurretGeometry.solve(cfg, in);
-        assertTrue(out.feasible);
+        assertEquals(TurretGeometry.SolveOutput.Status.OK, out.status);
         assertFalse(Double.isNaN(out.targetAngleRad));
     }
 
@@ -531,7 +528,7 @@ public class TurretGeometryTest {
             assertFalse("Infinite angle at iteration " + i, Double.isInfinite(out.targetAngleRad));
             assertFalse("NaN rate at iteration " + i, Double.isNaN(out.targetRateRadPerSec));
             assertFalse("NaN dist at iteration " + i, Double.isNaN(out.distIn));
-            if (out.feasible) {
+            if (out.status == TurretGeometry.SolveOutput.Status.OK) {
                 assertTrue("Angle out of range at iteration " + i,
                         out.targetAngleRad >= cfg.minTurretAngleRad - 1e-9 &&
                         out.targetAngleRad <= cfg.maxTurretAngleRad + 1e-9);
