@@ -50,10 +50,10 @@ public class BioBuzzTeleop extends OpMode {
     public void init() {
 
         // Drive motors
-        frontLeft = hardwareMap.get(DcMotorEx.class, "frontLeft");
-        frontRight = hardwareMap.get(DcMotorEx.class, "frontRight");
-        backLeft = hardwareMap.get(DcMotorEx.class, "backLeft");
-        backRight = hardwareMap.get(DcMotorEx.class, "backRight");
+        frontLeft = hardwareMap.get(DcMotorEx.class, "fl");
+        frontRight = hardwareMap.get(DcMotorEx.class, "fr");
+        backLeft = hardwareMap.get(DcMotorEx.class, "bl");
+        backRight = hardwareMap.get(DcMotorEx.class, "br");
 
         frontLeft.setDirection(DcMotorSimple.Direction.REVERSE);
         backLeft.setDirection(DcMotorSimple.Direction.REVERSE);
@@ -71,15 +71,15 @@ public class BioBuzzTeleop extends OpMode {
         backRight.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
         // Launcher motor
-        launcher = hardwareMap.get(DcMotorEx.class, "launch");
+        launcher = hardwareMap.get(DcMotorEx.class, "l");
 
         launcher.setDirection(DcMotorSimple.Direction.FORWARD);
         launcher.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         launcher.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
         // Intake and feeder
-        intakeMotor = hardwareMap.get(DcMotorEx.class, "intake");
-        feederMotor = hardwareMap.get(DcMotorEx.class, "feeder");
+        intakeMotor = hardwareMap.get(DcMotorEx.class, "i");
+        feederMotor = hardwareMap.get(DcMotorEx.class, "f");
 
         intakeMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         feederMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
@@ -88,9 +88,8 @@ public class BioBuzzTeleop extends OpMode {
         feederMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         // Flower hitter servo. Two fixed stops only; it is never commanded to an intermediate value.
-        flowerServo = hardwareMap.get(Servo.class, "flowerServo");
+        flowerServo = hardwareMap.get(Servo.class, "s");
         servoAtFlower = false;
-        flowerServo.setPosition(SERVO_HOME);
 
         // Reset actuator state so a previous OpMode's commands cannot survive into this one.
         // NOTE: DcMotor.stopAndReset() was removed in SDK 12; setPower(0) + setMotorDisable()
@@ -111,7 +110,7 @@ public class BioBuzzTeleop extends OpMode {
 
     @Override
     public void loop() {
-
+        flowerServo.setPosition(SERVO_HOME);
         // Y is the emergency launcher kill: the launcher runs from the start of the match, and Y is the
         // only way to stop it.
         boolean y = gamepad2.y;
