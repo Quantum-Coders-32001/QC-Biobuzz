@@ -34,6 +34,9 @@ import java.util.List;
 @TeleOp(name = "Static Shooter TeleOp", group = "TeleOp")
 public class StaticShooterTeleOp extends CommandOpMode {
     private List<LynxModule> hubs;
+    private DriveSubsystem drive;
+    private IntakeSubsystem intake;
+    private ShooterSubsystem shooter;
 
     @Override
     public void initialize() {
@@ -42,10 +45,10 @@ public class StaticShooterTeleOp extends CommandOpMode {
         for (LynxModule hub : hubs) hub.setBulkCachingMode(LynxModule.BulkCachingMode.MANUAL);
 
         // SubsystemBase auto-registers, so no register() call is needed.
-        DriveSubsystem drive = new DriveSubsystem(hardwareMap);
-        IntakeSubsystem intake = new IntakeSubsystem(hardwareMap);
+        drive = new DriveSubsystem(hardwareMap);
+        intake = new IntakeSubsystem(hardwareMap);
         FlowerSubsystem flower = new FlowerSubsystem(hardwareMap);
-        ShooterSubsystem shooter = new ShooterSubsystem(hardwareMap);
+        shooter = new ShooterSubsystem(hardwareMap);
         BlockerSubsystem blocker = new BlockerSubsystem(hardwareMap);
 
         // TODO(auto aim): once there is a distance source, call
@@ -99,5 +102,20 @@ public class StaticShooterTeleOp extends CommandOpMode {
     public void run() {
         for (LynxModule hub : hubs) hub.clearBulkCache();
         super.run();
+    }
+
+    /**
+     * Safe-stop (G403/G404). Hook verified against SolversLib 0.3.6 bytecode: runOpMode() runs
+     * {initialize; init loop; {preRun; run()*}; end(); reset()} — end() is guaranteed to run
+     * after the last scheduler pass and before the scheduler resets (also on interrupt), while
+     * LinearOpMode.stop() is final and cannot be overridden. periodic() no longer runs by then,
+     * so zero the motors directly. Servos are deliberately NOT re-commanded: no new output keeps
+     * the robot motionless, which G404 requires after TELEOP.
+     */
+    @Override
+    public void end() {
+        drive.stop();
+        intake.stop();
+        shooter.zeroOutputs();
     }
 }

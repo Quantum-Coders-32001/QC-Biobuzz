@@ -100,6 +100,18 @@ public class ShooterSubsystem extends SubsystemBase {
         }
     }
 
+    /**
+     * Direct zero command for the OpMode-end hook (StaticShooterTeleOp.end(); the scheduler no
+     * longer runs periodic() at that point). SolversLib's CommandOpMode does NOT zero actuators
+     * automatically, so this is the G403/G404 safe-stop path. Servos are intentionally NOT
+     * re-commanded here: no new output means the robot is motionless, which G404 requires
+     * after TELEOP.
+     */
+    public void zeroOutputs() {
+        launchR.setPower(0);
+        launchL.setPower(0);
+    }
+
     private static double clamp01(double v) {
         return Double.isNaN(v) ? 0.0 : Math.max(0.0, Math.min(1.0, v));
     }
