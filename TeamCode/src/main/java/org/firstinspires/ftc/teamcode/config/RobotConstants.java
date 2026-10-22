@@ -35,6 +35,14 @@ public final class RobotConstants {
     public static final String LAUNCH_R_NAME = "launchr"; // reversed in code
     public static final String LAUNCH_L_NAME = "launchl";
     // TODO(tune): Jeffrey will supply these. While all are 0 the launchers output 0 power.
+    // Bench tuning order (AGENTS.md L3, see teleop/test):
+    //   1) LAUNCH_KF = kV (power per tps) from FlywheelPowerSweepOpMode's least-squares fit.
+    //      SolversLib's kF multiplies the SETPOINT (verified), so power ≈ kF*targetTps + kP*err.
+    //      There is no additive-kS slot in PIDFController: kF absorbs it. If velocity droop
+    //      bands persist later, split kF by speed (the Panheya kV1@1100/kV2@1800 pattern).
+    //   2) LAUNCH_KP from FlywheelStepTestOpMode (raise until ~5% overshoot, back off).
+    //      kI/kD stay 0 for a flywheel speed loop: both inspo repos (Panheya, CNapSys) run
+    //      feedforward + P only, and an I term turns shot-load dips into windup.
     public static final double LAUNCH_KP = 0.0;
     public static final double LAUNCH_KI = 0.0;
     public static final double LAUNCH_KD = 0.0;

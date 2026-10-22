@@ -35,6 +35,14 @@ public class ShooterSubsystem extends SubsystemBase {
     private double targetVelTps = 0.0;
     private double hoodPos = Double.NaN;
 
+    /**
+     * Test-only setpoint override (CNapSys "set mode" pattern). Non-null forces the PIDF
+     * to track this EXACT value instead of the table/default target, so bench step tests drive
+     * the same control path the match code uses. Null restores normal behavior.
+     * (Used by FlywheelStepTestOpMode; leave null during matches.)
+     */
+    private Double testTargetOverrideTps = null;
+
     public ShooterSubsystem(HardwareMap hw) {
         launchR = hw.get(DcMotorEx.class, LAUNCH_R_NAME);
         launchL = hw.get(DcMotorEx.class, LAUNCH_L_NAME);
@@ -68,6 +76,13 @@ public class ShooterSubsystem extends SubsystemBase {
         this.distanceSupplierIn = supplierIn;
     }
 
+    /** Test-only: force the exact velocity setpoint. Pass null to clear (see field docs). */
+    public void setTestTargetOverrideTps(Double overrideTps) {
+        this.testTargetOverrideTps = overrideTps;
+    }
+
+    public boolean isTargetOverridden() { return testTargetOverrideTps != null; }
+
     public void toggle() {
         setEnabled(!enabled);
     }
@@ -80,9 +95,10 @@ public class ShooterSubsystem extends SubsystemBase {
     @Override
     public void periodic() {
         double distIn = distanceSupplierIn.getAsDouble();
-        autoAiming = velocityTable != null && Double.isFinite(distIn);
+        autoAiming = testTargetOverrideTps == null && velocityTable != null && Double.isFinite(distIn);
 
-        targetVelTps = autoAiming ? velocityTable.get(distIn) : DEFAULT_LAUNCH_VEL_TPS;
+        targetVelTps = testTargetOverrideTps != null ? testTargetOverrideTps
+                : (autoAiming ? velocityTable.get(distIn) : DEFAULT_LAUNCH_VEL_TPS);
 
         if (hoodConfigured) {
             double pos = autoAiming ? hoodTable.get(distIn) : HOOD_DEFAULT_POS;
