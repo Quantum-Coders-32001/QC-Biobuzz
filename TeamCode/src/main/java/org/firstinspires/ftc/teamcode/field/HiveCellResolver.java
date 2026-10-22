@@ -34,10 +34,11 @@ public final class HiveCellResolver {
     }
 
     /**
-     * The four CELL clusters on the field. Tag IDs are from MANUAL 9.9 Figure 9-17. Note the
-     * manual's text layer silently drops digits in several of these lists; the values here were
-     * read off the rendered page instead. Re-verify against Figure 9-17 before shipping anything
-     * that depends on an exact ID.
+     * The four CELL clusters on the field. Tag IDs re-verified by the user on 2026-10-21:
+     * BLUE HIVE = 38-45, RED HIVE = 30-37, with the audience/scoring split as encoded here.
+     * (The manual's text layer silently drops digits in these lists; the per-CELL split came
+     * from the rendered page and should still be double-checked against Figure 9-17 before
+     * any vision code ships.)
      */
     public enum Cluster {
         RED_SCORING(Alliance.RED, HiveSide.SCORING, 30, 31, 32, 33),

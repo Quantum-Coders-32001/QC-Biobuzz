@@ -170,8 +170,11 @@ Tips completed before TELEOP count as AUTO. Fouls: MINOR = 5 pts to opponent, MA
 ### 2.12 AprilTags [MANUAL §9.9; mostly unextracted]
 - 36h11 family, **3.25 in** square tags, in clusters of 4 on a sticker on the **bottom face of each CELL** (facing the tiles,
   bottom edge toward field center). 4 CELLS, so 16 tags.
-- Known IDs: 38-41 are the blue CELL on the audience side; red opposite-side starts at 0. The rest were lost in extraction.
-  **Do not hardcode IDs; read Figure 9-17.**
+- Known IDs (user-confirmed 2026-10-21, supersedes the earlier "red starts at 0" claim):
+  **BLUE HIVE = 38-45** (audience CELL 38-41, scoring CELL 42-45), **RED HIVE = 30-37**
+  (scoring CELL 30-33, audience CELL 34-37). The per-CELL split (aud vs scoring) still comes
+  from the research snapshot; the alliance grouping is user-verified. HiveCellResolver encodes
+  this mapping.
 - The tags ride on a moving structure, so they are targeting aids, **not static localization landmarks.** [3P: ViDAR marks
   them `localization: false`]. A raised CELL's tag row is reportedly ≈ 9.4 in higher than a lowered one [3P], so height can
   tell you which CELL is up. **TODO(verify).**
@@ -386,7 +389,9 @@ Keep **every** value below in `RobotConstants`, with a unit suffix and a comment
 ## 8. Open questions / verify list (resolve before relying on them)
 
 1. Tip threshold and CELL mouth height (§2.7); read the CAD, measure a real HIVE.
-2. AprilTag IDs per CELL (Fig 9-17) and whether the up/down CELL height difference is usable (§2.12).
+2. ~~AprilTag IDs per CELL (Fig 9-17)~~ — RESOLVED 2026-10-21: blue hive 38-45, red hive 30-37
+   (user-confirmed; per-CELL split still from the snapshot). Still open: whether the up/down
+   CELL height difference is usable (§2.12).
 3. Pedro coordinate frame ↔ manual's field orientation; all field poses (§2.3, §5).
 4. G410 scope for POLLEN; any launch-zone rule; current G-rule numbers (they drift).
 5. Allowed motors/servos and power limits in the current §12 (R503, R510).
