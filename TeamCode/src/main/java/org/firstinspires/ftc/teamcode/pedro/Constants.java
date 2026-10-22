@@ -24,8 +24,8 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
  * DriveSubsystem) are set. Everything unmeasured is TODO and marked below:
  *
  * <ul>
- *   <li>PINPOINT_NAME and drivetrain motor names: TODO(verify against the robot config —
- *       RF is assumed "fr", RR assumed "ff", which is itself unverified)</li>
+ *   <li>Drivetrain motor names and Pinpoint name: verified against the Driver Station config
+ *       by the user on 2026-10-21 (pinpoint = vendored PinpointTuner default)</li>
  *   <li>Pod type, pod directions and pod offsets: TODO(needed before A: run PinpointTuner)</li>
  *   <li>ALL Foresight gains (translational kP piecewise, coast/brake kV, heading kP,
  *       linear/quadratic brake coefficients, max achievable velocities): default to Pedro
@@ -52,7 +52,7 @@ public class Constants {
                 LEFT_SIDE_REVERSED ? DcMotorSimple.Direction.FORWARD : DcMotorSimple.Direction.REVERSE;
 
         return new MecanumConfig(c -> {
-            // TODO(verify): "fr" for front right and "ff" for back right are unverified names.
+            // Names verified against the Driver Station config by the user on 2026-10-21.
             c.frontLeftName.set(LF_NAME);
             c.backLeftName.set(LR_NAME);
             c.frontRightName.set(RF_NAME);

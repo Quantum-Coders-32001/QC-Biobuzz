@@ -13,8 +13,8 @@ public final class RobotConstants {
     // ===================== DRIVE (mecanum, robot-centric) =====================
     public static final String LF_NAME = "lf";
     public static final String LR_NAME = "lr";
-    // TODO(verify): you wrote "lf, lr, fr, ff". Assumed "fr" = right front and "ff" = right rear.
-    // The older BioBuzzTeleop used fl/fr/bl/br, so check the real robot config.
+    // Names verified against the Driver Station config by the user on 2026-10-21
+    // (ff is the rear-right motor).
     public static final String RF_NAME = "fr";
     public static final String RR_NAME = "ff";
     // TODO(verify on robot): copied from BioBuzzTeleop (left side reversed).
