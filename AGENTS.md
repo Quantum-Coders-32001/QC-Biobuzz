@@ -213,9 +213,9 @@ Tips completed before TELEOP count as AUTO. Fouls: MINOR = 5 pts to opponent, MA
   hardware directly (no subsystems, no commands, no `GamepadEx`). It uses plain `OpMode`, not `LinearOpMode`, because
   `LinearOpMode.stop()` is final while `OpMode.stop()` is the overridable end-of-run hook (verified in RobotCore 12.0.0
   bytecode: `internalRunOpMode()` calls `stop()` after the last loop, and telemetry is updated after every user callback).
-  The `subsystems/` + `commands/` classes were deleted on 2026-11-02; only `subsystems/ShooterSubsystem`
-  remains, solely because `FlywheelStepTestOpMode` constructs it. `ShooterSubsystem` and the teleop each have a
-  copy of the flywheel loop, so any change to one must be mirrored in the other.
+  All `subsystems/` and `commands/` classes were deleted on 2026-11-02. The flywheel motor setup and control law
+  live as public statics on the teleop (`configureFlywheelMotor`, `flywheelPower`) and are called by
+  `FlywheelStepTestOpMode`, so bench tuning and match behaviour are one implementation and cannot drift.
 - Dependencies (per SolversLib docs at 0.3.6; verify against the quickstart):
   - `org.solverslib:core:0.3.6`, `org.solverslib:pedroPathing:0.3.6`, optional `photon:0.3.6`
   - Maven repo: `https://repo.dairy.foundation/releases`

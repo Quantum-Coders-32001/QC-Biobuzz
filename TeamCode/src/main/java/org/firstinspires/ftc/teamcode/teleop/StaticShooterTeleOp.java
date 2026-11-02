@@ -32,9 +32,9 @@ import java.util.List;
  * is final. stop() is where the G403/G404 safe-stop lives. Also verified in the same bytecode:
  * the SDK calls telemetry.update() after every user callback, so loop() does not call it.
  *
- * Bench/tuning opmodes (teleop/test) still exist and still use the subsystem classes; this file
- * does not. If you change the flywheel control loop here, change it there too — they are separate
- * copies of the same math.
+ * Bench tuning opmodes (teleop/test) live in their own files, but flywheel setup and the control
+ * law are the public statics at the bottom of this class ({@link #configureFlywheelMotor},
+ * {@link #flywheelPower}), so bench numbers and match behaviour cannot drift apart.
  *
  * UNVERIFIED: not run on a robot.
  */
@@ -102,12 +102,8 @@ public class StaticShooterTeleOp extends OpMode {
         // ---- flywheels ----
         launchR = hardwareMap.get(DcMotorEx.class, LAUNCH_R_NAME);
         launchL = hardwareMap.get(DcMotorEx.class, LAUNCH_L_NAME);
-        launchR.setDirection(DcMotorSimple.Direction.REVERSE);
-        for (DcMotorEx m : new DcMotorEx[]{launchR, launchL}) {
-            m.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-            m.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER); // the PIDF is done in software
-            m.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-        }
+        configureFlywheelMotor(launchR, true);
+        configureFlywheelMotor(launchL, false);
 
         // ---- servos ----
         hood = hardwareMap.get(Servo.class, HOOD_NAME);
@@ -220,9 +216,8 @@ public class StaticShooterTeleOp extends OpMode {
         }
 
         if (shooterOn && targetVelTps > 0) {
-            // Output clamped to [0,1]: a flywheel is never driven backwards to brake.
-            launchR.setPower(clamp01(pidR.calculate(launchR.getVelocity(), targetVelTps)));
-            launchL.setPower(clamp01(pidL.calculate(launchL.getVelocity(), targetVelTps)));
+            launchR.setPower(flywheelPower(pidR, launchR.getVelocity(), targetVelTps));
+            launchL.setPower(flywheelPower(pidL, launchL.getVelocity(), targetVelTps));
         } else {
             launchR.setPower(0);
             launchL.setPower(0);
@@ -234,8 +229,31 @@ public class StaticShooterTeleOp extends OpMode {
         pidL = new PIDFController(LAUNCH_KP, LAUNCH_KI, LAUNCH_KD, LAUNCH_KF);
     }
 
-    private static double clamp01(double v) {
-        return Double.isNaN(v) ? 0.0 : Math.max(0.0, Math.min(1.0, v));
+    // ------------------------------------------------- shared with the bench test
+    /**
+     * Flywheel motor setup for the match teleop AND the bench step test. One place, because a
+     * direction/mode mismatch between bench and match silently invalidates every tuning number.
+     * (STOP_AND_RESET_ENCODER is only about a known zero; control is velocity-based.)
+     */
+    public static void configureFlywheelMotor(DcMotorEx motor, boolean reversed) {
+        motor.setDirection(reversed ? DcMotorSimple.Direction.REVERSE : DcMotorSimple.Direction.FORWARD);
+        motor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        motor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER); // the PIDF is done in software
+        motor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+    }
+
+    /**
+     * The one flywheel control law: PIDF on measured vs target velocity, clamped to [0,1]
+     * because a flywheel is never driven backwards to brake. Called by the match loop and by
+     * {@link org.firstinspires.ftc.teamcode.teleop.test.FlywheelStepTestOpMode} — do not copy
+     * this expression anywhere else.
+     *
+     * <p>SolversLib's PIDFController takes (measured, setpoint) in that order, and kF multiplies
+     * the setpoint. Verified against the 0.3.6 docs; swapping the arguments silently ruins tuning.
+     */
+    public static double flywheelPower(PIDFController pid, double measuredTps, double targetTps) {
+        double out = pid.calculate(measuredTps, targetTps);
+        return Double.isNaN(out) ? 0.0 : Math.max(0.0, Math.min(1.0, out));
     }
 
     // ---------------------------------------------------------------- blocker
