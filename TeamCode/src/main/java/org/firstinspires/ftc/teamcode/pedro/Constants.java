@@ -20,8 +20,8 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
  * Mecanum(HardwareMap, MecanumConfig); PinpointLocalizer(HardwareMap, PinpointConfig).
  *
  * <p>NO-GUESSING RULE: ConfigVars left unset fall back to Pedro's built-in defaults.
- * Only values we actually know (hardware names, the same direction logic as
- * DriveSubsystem) are set. Everything unmeasured is TODO and marked below:
+ * Only values we actually know (hardware names, the same direction logic as the teleop)
+ * are set. Everything unmeasured is TODO and marked below:
  *
  * <ul>
  *   <li>Drivetrain motor names and Pinpoint name: verified against the Driver Station config
@@ -40,10 +40,10 @@ public class Constants {
     public static final String PINPOINT_NAME = "pinpoint";
 
     /**
-     * Drivetrain config: same names/direction policy as DriveSubsystem.
+     * Drivetrain config: same names/direction policy as StaticShooterTeleOp.
      * NOTE: Pedro's Mecanum sets its own directions on the same DcMotorEx objects, so once a
-     * follower is actually driving the wheels, DriveSubsystem.setPower must not be used
-     * concurrently with follower.manual/follow (one drive path per loop).
+     * follower is actually driving the wheels, the teleop's setPower must not run concurrently
+     * with follower.manual/follow (one drive path per loop).
      */
     public static MecanumConfig mecanumConfig() {
         DcMotorSimple.Direction left =

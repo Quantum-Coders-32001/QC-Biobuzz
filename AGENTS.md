@@ -209,6 +209,12 @@ Tips completed before TELEOP count as AUTO. Fouls: MINOR = 5 pts to opponent, MA
 - **SolversLib 0.3.6 + Pedro Pathing 3.0.x**, command-based. (Ivy was dropped.) Target structure: a `Robot` class, an `AutoBase`
   with `setAlliance()` + `initialize()`, a default drive command, a `RunCommand` for reads, one `SequentialCommandGroup`
   per auto built from `InstantCommand` / `WaitCommand` / `ParallelCommandGroup`, and `*Cmd` command classes.
+- **2026-11-02: the TELEOP is deliberately one file.** `teleop/StaticShooterTeleOp` extends plain `OpMode` and owns its
+  hardware directly (no subsystems, no commands, no `GamepadEx`). It uses plain `OpMode`, not `LinearOpMode`, because
+  `LinearOpMode.stop()` is final while `OpMode.stop()` is the overridable end-of-run hook (verified in RobotCore 12.0.0
+  bytecode: `internalRunOpMode()` calls `stop()` after the last loop, and telemetry is updated after every user callback).
+  The `subsystems/` + `commands/` classes now exist only for the bench tuning opmodes; `ShooterSubsystem` and the teleop
+  each have a copy of the flywheel loop, so any change to one must be mirrored in the other.
 - Dependencies (per SolversLib docs at 0.3.6; verify against the quickstart):
   - `org.solverslib:core:0.3.6`, `org.solverslib:pedroPathing:0.3.6`, optional `photon:0.3.6`
   - Maven repo: `https://repo.dairy.foundation/releases`

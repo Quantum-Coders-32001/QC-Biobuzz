@@ -12,8 +12,11 @@ import org.firstinspires.ftc.teamcode.subsystems.ShooterSubsystem;
  * PHASE 2 of shooter tuning (AGENTS.md L3): step response with the REAL control path.
  *
  * This drives {@link ShooterSubsystem} itself (its PIDF object, RUN_WITHOUT_ENCODER, clamp01),
- * with a test override for the exact setpoint. Motor modes/gains come from RobotConstants, so
- * what you tune here is exactly what flies in a match. Iterate on LAUNCH_KP manually:
+ * with a test override for the exact setpoint. Motor modes/gains come from RobotConstants.
+ * WARNING: StaticShooterTeleOp is a single file with its own inline copy of this same flywheel
+ * loop (same PIDF class, same calculate(measured, setpoint) order, same clamp). If you change
+ * one, change the other, or this bench result stops describing the match code. Iterate on
+ * LAUNCH_KP manually:
  * raise it until overshoot ≈ 4-5% of target, then back off ~35%. kI/kD stay 0 (both inspo
  * teams run feedforward + P only on flywheels; an "I" turns shot-load dips into windup).
  *
