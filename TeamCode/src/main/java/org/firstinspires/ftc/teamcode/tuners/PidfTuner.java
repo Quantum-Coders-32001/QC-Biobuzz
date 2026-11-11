@@ -31,7 +31,7 @@ import org.firstinspires.ftc.teamcode.teleop.StaticShooterTeleOp;
  * <p>The control law is the match teleop's own ({@link StaticShooterTeleOp#flywheelPower}), so a
  * gain that looks good here is the gain that flies.
  *
- * <p>UNVERIFIED: no robot yet (AGENTS.md §0.8). This is a bench tool - strap the flywheels.
+ * <p>UNVERIFIED: no robot yet (AGENTS.md ยง0.8). This is a bench tool - strap the flywheels.
  */
 @TeleOp(name = "PIDF Tuner", group = "tuners")
 public class PidfTuner extends LinearOpMode {
@@ -60,7 +60,7 @@ public class PidfTuner extends LinearOpMode {
     public void runOpMode() {
         telemetry = new MultipleTelemetry(telemetry, FtcDashboard.getInstance().getTelemetry());
 
-        shooter = hardwareMap.get(DcMotorEx.class, "shooter");
+        shooter = hardwareMap.get(DcMotorEx.class, "fly");
         shooter.setDirection(DcMotorSimple.Direction.REVERSE);
         notshooter = hardwareMap.get(DcMotorEx.class, "roll");
         transferL = hardwareMap.get(DcMotor.class, "lt");
@@ -70,9 +70,9 @@ public class PidfTuner extends LinearOpMode {
         notshooter.setPower(0.4);
         transferL.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         transferR.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-
+        transferR.setDirection(DcMotorSimple.Direction.REVERSE);
         telemetry.addLine("A = lt/rt forward 1.0, X = reverse 1.0, "
-                + "dpad up/down = target +/-50 tps, B = stop flywheel.");
+                + "dpad up/down = target +/-50 tpse, B = stop flywheel.");
         telemetry.update();
 
         waitForStart();

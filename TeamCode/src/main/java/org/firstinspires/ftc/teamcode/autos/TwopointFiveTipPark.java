@@ -7,6 +7,7 @@ import com.pedropathing.ivy.Scheduler;
 import static com.pedropathing.ivy.Scheduler.reset;
 import static com.pedropathing.ivy.Scheduler.schedule;
 import static com.pedropathing.ivy.groups.Groups.parallel;
+import static com.pedropathing.ivy.groups.Groups.race;
 import static com.pedropathing.ivy.groups.Groups.sequential;
 import static com.pedropathing.ivy.pedro.PedroCommands.follow;
 
@@ -25,6 +26,8 @@ import org.firstinspires.ftc.teamcode.subsystems.ivyCommands;
 @Autonomous
 public class TwopointFiveTipPark extends OpMode {
     private Follower follower; // Add this
+
+    private ivyCommands robot;
 
     private final PoseFactory poseFactory = PoseFactory.degrees();
 
@@ -82,7 +85,7 @@ public class TwopointFiveTipPark extends OpMode {
         follower = Constants.create(hardwareMap);
         follower.setPose(start);
         follower.update();
-        ivyCommands robot = new ivyCommands(hardwareMap);
+        robot = new ivyCommands(hardwareMap);
     }
 
     @Override
@@ -98,8 +101,8 @@ public class TwopointFiveTipPark extends OpMode {
 
     private Command autoRoutine() {
         return sequential(
-
-                follow(follower, goToLine()),
+                robot.shoot(1800,2),
+                race(follow(follower, goToLine()), robot.intake()),
                 follow(follower, moveFromLine()),
                 follow(follower, moveAcrossField()),
                 follow(follower, goToFlower()),
