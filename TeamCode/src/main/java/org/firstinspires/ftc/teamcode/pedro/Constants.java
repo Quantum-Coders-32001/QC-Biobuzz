@@ -36,6 +36,20 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
  */
 public class Constants {
 
+    // rgb indicator colors
+
+    public final double red = 0.279;
+    public final double orange = 0.317;
+    public final double yellow = 0.36;
+    public final double green = 0.5;
+    public final double blue = 0.61;
+    public final double indigo = 0.67;
+    public final double violet = 0.7;
+    public final double white = 1;
+
+
+
+
     /** TODO(verify): Pinpoint hardware name. Matches the vendored PinpointTuner default. */
     public static final String PINPOINT_NAME = "pinpoint";
 
