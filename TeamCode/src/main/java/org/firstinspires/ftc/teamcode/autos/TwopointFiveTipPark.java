@@ -109,7 +109,7 @@ public class TwopointFiveTipPark extends OpMode {
 
     private Command autoRoutine() {
         return sequential(
-                robot.shoot(1500,0.7),
+                robot.shoot(1500,700),
                 race(follow(follower, goToLine()), robot.intake()),
                 follow(follower, moveFromLineAndAcross()),
                 // robot.flower(),
@@ -120,7 +120,7 @@ public class TwopointFiveTipPark extends OpMode {
                 follow(follower, intakeFrom2ndFlower()),
                 robot.intake(3000),
                 parallel(follow(follower, shoot2ndFlower())),
-                robot.shoot(1800,0.7),
+                robot.shoot(1800,700),
                 follow(follower, park())
         );
     }
