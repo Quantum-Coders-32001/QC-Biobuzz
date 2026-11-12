@@ -64,6 +64,25 @@ public final class RobotConstants {
     // Used whenever no distance is available. 0 = launchers stay off. TODO(measure)
     public static final double DEFAULT_LAUNCH_VEL_TPS = 0.0;
 
+    // ===================== FLYWHEEL BANG-BANG (velocity hold, used by the Ivy autos) =====================
+    // Copied from teleop/ShooterTeleOp.G on 2026-11-11, where they were tuned by eye against a bench
+    // wheel. This is now the ONLY copy: ShooterTeleOp.G initialises its dashboard fields from these,
+    // so the auto and the match teleop cannot drift to two different wheel speeds (AGENTS.md §7 -
+    // two configs for one mechanism is how the old repo's turret ended up fighting itself).
+    //
+    // The law (subsystems/ivyCommands#bangBangPower) is a relay:
+    //     power = velocity < target - deadband ? bangPower : 0
+    // It needs the flywheel in RUN_WITHOUT_ENCODER. In RUN_USING_ENCODER, setPower() is a velocity
+    // SETPOINT for the hub's own PID and quietly fights this loop instead of obeying it.
+    public static final double BANG_TARGET_TPS = 1470.0; // TODO(tune): settled-on value, not measured
+    public static final double BANG_DEADBAND_TPS = 7.2;  // hysteresis width, ~0.5% of target. TODO(tune)
+    public static final double BANG_POWER = 1.0;
+
+    // An auto has no button to hold, so it waits for the wheel - but only this long. Without a cap, a
+    // jammed or unplugged flywheel hangs the entire auto instead of failing visibly. TODO(measure):
+    // time a cold spin-up from 0 to BANG_TARGET_TPS at full power.
+    public static final double BANG_SPINUP_TIMEOUT_MS = 2500.0;
+
     // ===================== HOOD =====================
     public static final String HOOD_NAME = "hood";
     // TODO(measure): real mechanical limits and default. NaN = hood is never commanded.

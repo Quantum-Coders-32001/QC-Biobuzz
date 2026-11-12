@@ -4,13 +4,20 @@ import static org.firstinspires.ftc.teamcode.config.RobotConstants.*;
 
 import com.pedropathing.algorithm.Foresight;
 import com.pedropathing.algorithm.ForesightConfig;
+import com.pedropathing.controllers.Controller;
 import com.pedropathing.follower.Follower;
+import com.pedropathing.math.Matrix;
+import com.pedropathing.math.Vector2D;
 import com.pedropathing.revhub.drivetrains.Mecanum;
 import com.pedropathing.revhub.drivetrains.MecanumConfig;
 import com.pedropathing.revhub.localizers.PinpointConfig;
 import com.pedropathing.revhub.localizers.PinpointLocalizer;
+import com.pedropathing.tuning.autotune.Procedure;
+import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
+
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 
 /**
  * Pedro Pathing 3 entry point. Fills the quickstart stub (which returned null).
@@ -38,74 +45,58 @@ public class Constants {
 
     // rgb indicator colors
 
-    public final double red = 0.279;
-    public final double orange = 0.317;
-    public final double yellow = 0.36;
-    public final double green = 0.5;
-    public final double blue = 0.61;
-    public final double indigo = 0.67;
-    public final double violet = 0.7;
-    public final double white = 1;
 
 
 
-
-    /** TODO(verify): Pinpoint hardware name. Matches the vendored PinpointTuner default. */
-    public static final String PINPOINT_NAME = "pinpoint";
-
-    /**
-     * Drivetrain config: same names/direction policy as StaticShooterTeleOp.
-     * NOTE: Pedro's Mecanum sets its own directions on the same DcMotorEx objects, so once a
-     * follower is actually driving the wheels, the teleop's setPower must not run concurrently
-     * with follower.manual/follow (one drive path per loop).
-     */
-    public static MecanumConfig mecanumConfig() {
-        DcMotorSimple.Direction left =
-                LEFT_SIDE_REVERSED ? DcMotorSimple.Direction.REVERSE : DcMotorSimple.Direction.FORWARD;
-        DcMotorSimple.Direction right =
-                LEFT_SIDE_REVERSED ? DcMotorSimple.Direction.FORWARD : DcMotorSimple.Direction.REVERSE;
-
-        return new MecanumConfig(c -> {
-            // Names verified against the Driver Station config by the user on 2026-10-21.
-            c.frontLeftName.set(LF_NAME);
-            c.backLeftName.set(LR_NAME);
-            c.frontRightName.set(RF_NAME);
-            c.backRightName.set(RR_NAME);
-            c.frontLeftDirection.set(left);
-            c.backLeftDirection.set(left);
-            c.frontRightDirection.set(right);
-            c.backRightDirection.set(right);
-            // manualBrakeMode, powerThreshold: Pedro defaults (unset) TODO(verify in testing)
-        });
-    }
-
-    /** Localizer config: all physical values TODO(measure via PinpointTuner). */
-    public static PinpointConfig pinpointConfig() {
-        return new PinpointConfig(c -> {
-            c.name.set(PINPOINT_NAME);
-            // podType, ticksPerUnit: Pedro defaults TODO(run PinpointTuner, paste its output);
-            // xPodDirection, yPodDirection: Pedro defaults TODO(verify per PinpointTuner);
-            // xPodOffset, yPodOffset: Pedro defaults TODO(identify per PinpointTuner);
-            c.globalDistanceUnit.set(org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit.INCH);
-            c.offsetUnits.set(org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit.INCH);
-        });
-    }
-
-    /** Foresight gains: Pedro defaults TODO(run ForesightTuner, paste its generated block). */
-    public static ForesightConfig foresightConfig() {
-        return new ForesightConfig(c -> {
-        });
-    }
-
-    /**
-     * Follower(Localizer, Drivetrain, Algorithm) — argument order verified against the actual
-     * 3.0.2 bytecode and the vendored Tests procedure.
-     */
     public static Follower create(HardwareMap h) {
         return new Follower(
-                new PinpointLocalizer(h, pinpointConfig()),
-                new Mecanum(h, mecanumConfig()),
-                new Foresight(foresightConfig())
-        );
+                new PinpointLocalizer(h, localizerConfig),
+                new Mecanum(h, drivetrainConfig),
+                new Foresight(foresightConfig));
     }
+    public static MecanumConfig drivetrainConfig = new MecanumConfig(c -> {
+        c.frontLeftName.set("fl");
+        c.frontRightName.set("fr");
+        c.backLeftName.set("bl");
+        c.backRightName.set("br");
+        c.frontLeftDirection.set(DcMotorSimple.Direction.FORWARD);
+        c.frontRightDirection.set(DcMotorSimple.Direction.REVERSE);
+        c.backLeftDirection.set(DcMotorSimple.Direction.FORWARD);
+        c.backRightDirection.set(DcMotorSimple.Direction.REVERSE);
+    });
+    public static PinpointConfig localizerConfig = new PinpointConfig(c -> {
+        c.name.set("pinpoint");
+        c.podType.set(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD);
+        c.xPodOffset.set(-3.655855974813146);
+        c.yPodOffset.set(-1.1988410048597442);
+        c.xPodDirection.set(GoBildaPinpointDriver.EncoderDirection.REVERSED);
+        c.yPodDirection.set(GoBildaPinpointDriver.EncoderDirection.FORWARD);
+        c.globalDistanceUnit.set(DistanceUnit.INCH);
+        c.offsetUnits.set(DistanceUnit.INCH);
+    });
+    public static ForesightConfig foresightConfig = new ForesightConfig(
+            c -> {
+                Controller primaryTranslationalForward = Controller.proportional(0.27243491085989946);
+                Controller secondaryTranslationalForward = Controller.proportional(0.10065741996784446);
+                Controller primaryTranslationalLateral = Controller.proportional(0.47557673008178963);
+                Controller secondaryTranslationalLateral = Controller.proportional(0.17571289412095345);
+
+                c.forwardTranslational.set(Controller.piecewise(secondaryTranslationalForward).put(2.5, primaryTranslationalForward));
+                c.strafeTranslational.set(Controller.piecewise(secondaryTranslationalLateral).put(2.5, primaryTranslationalLateral));
+
+                c.coast.set(Controller.proportionalFeedforward(0.013164429171397625));
+                c.brake.set(Controller.proportionalFeedforward(0.01118976479568798));
+
+                c.headingFeedback.set(Controller.proportional(3.437119868300817));
+                c.headingBrakeCoefficients.set(Vector2D.cartesian(0.04280536765919743, 0.0075152775015678));
+
+                c.linearBrakeCoefficients.set(Matrix.diag(0.1516468838924869, 0.0632645722358536));
+                c.quadraticBrakeCoefficients.set(Matrix.diag(-4.748111626084052E-4, 0.0011023175732213508));
+
+                c.maxAchievableForwardVelocity.set(79.8395333363776);
+                c.maxAchievableStrafeVelocity.set(60.68445536059572);
+                c.naturalForwardDeceleration.set(30.921639657069363);
+                c.naturalStrafeDeceleration.set(60.14404333185835);
+            }
+    );
 }

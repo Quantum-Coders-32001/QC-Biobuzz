@@ -22,12 +22,18 @@ import com.pedropathing.paths.Path;
 
 import org.firstinspires.ftc.teamcode.pedro.Constants;
 import org.firstinspires.ftc.teamcode.subsystems.ivyCommands;
-
+import org.firstinspires.ftc.teamcode.subsystems.ivyCommands.*;
 @Autonomous
 public class TwopointFiveTipPark extends OpMode {
+
+    public double down = 0;
+
+    public double up = 0.7;
     private Follower follower; // Add this
 
     private ivyCommands robot;
+
+
 
     private final PoseFactory poseFactory = PoseFactory.degrees();
 
@@ -50,6 +56,9 @@ public class TwopointFiveTipPark extends OpMode {
         return Paths.curve(start, goToLineControl1, goToLine).linear(start, goToLine);
     }
 
+    public Path moveFromLineAndAcross() {
+        return Paths.path(moveFromLine(), moveAcrossField());
+    }
     public Path moveFromLine() {
         return Paths.line(moveFromLineStart, moveFromLine).linear(moveFromLineStart, moveFromLine);
     }
@@ -80,7 +89,6 @@ public class TwopointFiveTipPark extends OpMode {
 
     @Override
     public void init() {
-
         Scheduler.reset();
         follower = Constants.create(hardwareMap);
         follower.setPose(start);
@@ -101,14 +109,18 @@ public class TwopointFiveTipPark extends OpMode {
 
     private Command autoRoutine() {
         return sequential(
-                robot.shoot(1800,2),
+                robot.shoot(1500,0.7),
                 race(follow(follower, goToLine()), robot.intake()),
-                follow(follower, moveFromLine()),
-                follow(follower, moveAcrossField()),
+                follow(follower, moveFromLineAndAcross()),
+                // robot.flower(),
                 follow(follower, goToFlower()),
-                follow(follower, goTo2ndFlower()),
+                robot.shoot(1800,1500),
+                parallel(follow(follower, goTo2ndFlower())),
+                // robot.flower(down),
                 follow(follower, intakeFrom2ndFlower()),
-                follow(follower, shoot2ndFlower()),
+                robot.intake(3000),
+                parallel(follow(follower, shoot2ndFlower())),
+                robot.shoot(1800,0.7),
                 follow(follower, park())
         );
     }
