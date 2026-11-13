@@ -47,8 +47,7 @@ public final class RobotConstants {
     // ===================== LAUNCHER (ONE flywheel motor, SolversLib PIDF, ticks/sec) =====================
     // One motor: the Driver Station config has "shooter" (see ivyCommands.java), not a left/right
     // pair. TODO(verify): motor direction.
-    public static final String SHOOTER_NAME = "shooter";
-    // TODO(tune): Jeffrey will supply these. While all are 0 the launchers output 0 power.
+    public static final String SHOOTER_NAME = "fly";
     // Bench tuning order (AGENTS.md L3, see tuners/):
     //   1) LAUNCH_KF = kV from PidfTuner (set target, dial kF until steady state hits it).
     //      SolversLib's kF multiplies the SETPOINT (verified), so power ≈ kF*targetTps + kP*err.
@@ -56,10 +55,10 @@ public final class RobotConstants {
     //   2) LAUNCH_KP from PidfTuner (raise until ~5% overshoot, back off).
     //      kI/kD stay 0 for a flywheel speed loop: both inspo repos (Panheya, CNapSys) run
     //      feedforward + P only, and an I term turns shot-load dips into windup.
-    public static final double LAUNCH_KP = 0.0;
+    public static final double LAUNCH_KP = 0;
     public static final double LAUNCH_KI = 0.0;
     public static final double LAUNCH_KD = 0.0;
-    public static final double LAUNCH_KF = 0.0;
+    public static final double LAUNCH_KF = 0;
     public static final double LAUNCH_VEL_TOLERANCE_TPS = 50.0; // telemetry "at speed" only. TODO(tune)
     // Used whenever no distance is available. 0 = launchers stay off. TODO(measure)
     public static final double DEFAULT_LAUNCH_VEL_TPS = 0.0;
@@ -75,7 +74,7 @@ public final class RobotConstants {
     // It needs the flywheel in RUN_WITHOUT_ENCODER. In RUN_USING_ENCODER, setPower() is a velocity
     // SETPOINT for the hub's own PID and quietly fights this loop instead of obeying it.
     public static final double BANG_TARGET_TPS = 1470.0; // TODO(tune): settled-on value, not measured
-    public static final double BANG_DEADBAND_TPS = 7.2;  // hysteresis width, ~0.5% of target. TODO(tune)
+    public static final double BANG_DEADBAND_TPS = 8;  // hysteresis width, ~0.5% of target. TODO(tune)
     public static final double BANG_POWER = 1.0;
 
     // An auto has no button to hold, so it waits for the wheel - but only this long. Without a cap, a
@@ -110,8 +109,8 @@ public final class RobotConstants {
     // Hardware name is "gate" (ivyCommands.java). 0.75 rests/holds the balls, 0.55 fires.
     // Confirmed by the user 2026-11-10: gate -> 0.55 while shooting, back to 0.75 after.
     public static final String GATE_NAME = "gate";
-    public static final double GATE_REST_POS = 0.75;
-    public static final double GATE_FIRE_POS = 0.55;
+    public static final double GATE_REST_POS = 0.55;
+    public static final double GATE_FIRE_POS = 0.75;
 
     // ===================== LIMELIGHT =====================
     public static final String LIMELIGHT_NAME = "limelight"; // TODO(verify): DS config name
@@ -154,6 +153,23 @@ public final class RobotConstants {
     // Keep aiming on the last frame for this long after the tags vanish (a spike in latency must
     // not snap the chassis back to manual mid-shot). TODO(tune)
     public static final long AIM_TARGET_TIMEOUT_MS = 150;
+
+    // ===================== HIVE TIP DETECTION (ivyCommands#isTipped) =====================
+    // isTipped() takes each alliance tag's pose in ROBOT space from the Limelight, rotates it into
+    // the field with the odometry heading, and watches whether that field coordinate moves. A tag
+    // bolted to a CELL cannot move relative to the field unless the CELL moved, so this reads the
+    // HIVE's state directly instead of counting our own tips - which matters because the partner
+    // robot can tip it too (AGENTS.md 4.4).
+    //
+    // HOW TO FILL IT IN: aim at the raised CELL, put robot.tipMoveIn() on telemetry, have somebody
+    // tip the HIVE by hand, and read the number it jumps to. Set the threshold below that jump and
+    // above the odometry drift you see over a whole auto - on one tag, drift and a very slow tip
+    // look identical.
+    // TODO(measure): NaN = detection disabled, isTipped() always false.
+    public static final double TIP_MOVE_THRESHOLD_IN = Double.NaN;
+    // A tag pose older than this is from a different moment than our odometry, and while driving
+    // that gap looks exactly like a tag that moved. TODO(tune)
+    public static final long TIP_MAX_FRAME_AGE_MS = 250;
 
     // Rgb indihcator
 
